@@ -1,0 +1,157 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  avatarUrl   String?  @map("avatar_url")
+  firebaseUid String   @unique @map("firebase_uid")
+  username    String?
+  email       String   @unique
+  status      Int?     @default(1)
+  createdAt   DateTime @default(now()) @map("create_at")
+
+  // Relations
+  packages Package[]
+  comments Comment[]
+  ratings  Rating[]
+  reports  Report[]
+
+  // Follows (Self-relation)
+  followers Follow[] @relation("following")
+  following Follow[] @relation("follower")
+
+  @@map("users")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int      @map("follower_id")
+  followingId Int      @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("follower", fields: [followerId], references: [id])
+  following User @relation("following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Package {
+  id          Int      @id @default(autoincrement())
+  title       String?
+  description String?  @db.Text // Dùng Text nếu mô tả dài
+  status      Int?     @default(0)
+  ratingCount Int?     @default(0) @map("rating_count")
+  ratingAvg   Float?   @default(0) @map("rating_avg")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at") // Tự động update thời gian
+  changelog   String?  @db.LongText
+  userId      Int      @map("user_id")
+  catId       Int      @map("category_id")
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id])
+  category Category  @relation(fields: [catId], references: [id])
+  versions Version[]
+  images   Image[]
+  comments Comment[]
+  ratings  Rating[]
+
+  @@map("packages")
+}
+
+model Version {
+  id            Int      @id @default(autoincrement())
+  platformType  String?  @map("platform_type")
+  versionNumber String?  @map("version_number")
+  packageId     Int      @map("package_id")
+  url           String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@map("version")
+}
+
+model Image {
+  id        Int     @id @default(autoincrement())
+  url       String?
+  packageId Int     @map("package_id")
+
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@map("images")
+}
+
+model Category {
+  id    Int     @id @default(autoincrement())
+  name  String?
+  param String?
+
+  // Trường lưu ID của danh mục cha
+  parentId Int? @map("parent_id")
+
+  // Quan hệ tự thân (Self-relation)
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+
+  // Quan hệ với Package
+  packages Package[]
+
+  @@map("categories")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userId    Int  @map("user_id")
+  packageId Int  @map("package_id")
+  parentId  Int? @map("parent_id")
+
+  user    User    @relation(fields: [userId], references: [id])
+  package Package @relation(fields: [packageId], references: [id])
+
+  // Self-relation cho comment lồng nhau (reply)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Rating {
+  id        Int      @id @default(autoincrement())
+  score     Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  packageId Int      @map("package_id")
+
+  user    User    @relation(fields: [userId], references: [id])
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@unique([userId, packageId]) // Mỗi user chỉ đánh giá 1 package 1 lần
+  @@map("ratings")
+}
+
+model Report {
+  id         Int      @id @default(autoincrement())
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  userId     Int      @map("user_id")
+  targetId   Int      @map("target_id")
+  targetType String   @map("target_type")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("reports")
+}

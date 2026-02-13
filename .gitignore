@@ -1,0 +1,6 @@
+node_modules
+# Keep environment variables out of version control
+.env
+lastfom-launcher-firebase-adminsdk-fbsvc-da8ffa2d47.json
+
+/src/generated/prisma

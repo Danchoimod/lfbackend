@@ -64,6 +64,7 @@ model Package {
   images   Image[]
   comments Comment[]
   ratings  Rating[]
+  urls     Url[]
 
   @@map("packages")
 }
@@ -154,4 +155,16 @@ model Report {
   user User @relation(fields: [userId], references: [id])
 
   @@map("reports")
+}
+
+model Url {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  url       String?
+  packageId Int      @map("package_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@map("urls")
 }

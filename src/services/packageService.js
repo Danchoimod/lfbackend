@@ -32,7 +32,8 @@ const getAllPackages = async (query = {}) => {
                         createdAt: 'desc'
                     },
                     take: 1
-                }
+                },
+                urls: true
             },
             orderBy: {
                 createdAt: 'desc'
@@ -70,6 +71,7 @@ const getPackageById = async (id) => {
                 }
             },
             images: true,
+            urls: true,
             comments: {
                 include: {
                     user: {

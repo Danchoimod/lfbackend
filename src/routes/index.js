@@ -2,6 +2,7 @@ const express = require('express');
 const authRoutes = require('./auth');
 const categoryRoutes = require('./category');
 const packageRoutes = require('./packageRoutes');
+const commentRoutes = require('./commentRoutes');
 const checkRoutes = require('./check');
 const exampleRoutes = require('./exampleRoutes');
 
@@ -15,6 +16,7 @@ router.get('/', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/packages', packageRoutes);
+router.use('/comments', commentRoutes);
 router.use('/check', checkRoutes);
 router.use('/examples', exampleRoutes);
 

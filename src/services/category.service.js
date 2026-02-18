@@ -1,4 +1,5 @@
 const prisma = require("../utils/prisma");
+const slugify = require("../utils/slugify");
 
 async function getAllCategories() {
     return prisma.category.findMany({
@@ -38,9 +39,56 @@ async function getCategoryById(id) {
     });
 }
 
+async function getPackagesByCategory(slug, query = {}) {
+    const { page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+
+    const result = await prisma.category.findFirst({
+        where: { param: slug },
+        include: {
+            packages: {
+                skip: parseInt(skip),
+                take: parseInt(limit),
+                select: {
+                    id: true,
+                    title: true,
+                    createdAt: true,
+                    ratingCount: true,
+                    ratingAvg: true,
+                    user: {
+                        select: {
+                            username: true,
+                            avatarUrl: true
+                        }
+                    },
+                    images: {
+                        take: 1,
+                        select: {
+                            url: true
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            }
+        }
+    });
+
+    if (result && result.packages) {
+        result.packages = result.packages.map(pkg => ({
+            ...pkg,
+            slug: `${pkg.id}-${slugify(pkg.title)}`
+        }));
+    }
+
+    return result;
+}
+
 module.exports = {
     getAllCategories,
     createCategory,
     updateCategory,
-    getCategoryById
+    getCategoryById,
+    getPackagesByCategory
 };

@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const slugify = require('../utils/slugify');
 
 const getAllPackages = async (query = {}) => {
     const { page = 1, limit = 10, search, catId } = query;
@@ -17,23 +18,31 @@ const getAllPackages = async (query = {}) => {
             where,
             skip: parseInt(skip),
             take: parseInt(limit),
-            include: {
+            select: {
+                id: true,
+                title: true,
+                createdAt: true,
+                ratingCount: true,
+                ratingAvg: true,
                 user: {
                     select: {
-                        id: true,
                         username: true,
                         avatarUrl: true
                     }
                 },
-                category: true,
-                images: true,
-                versions: {
-                    orderBy: {
-                        createdAt: 'desc'
-                    },
-                    take: 1
+                category: {
+                    select: {
+                        id: true,
+                        name: true,
+                        param: true
+                    }
                 },
-                urls: true
+                images: {
+                    take: 1,
+                    select: {
+                        url: true
+                    }
+                }
             },
             orderBy: {
                 createdAt: 'desc'
@@ -42,8 +51,13 @@ const getAllPackages = async (query = {}) => {
         prisma.package.count({ where })
     ]);
 
+    const formattedPackages = packages.map(pkg => ({
+        ...pkg,
+        slug: `${pkg.id}-${slugify(pkg.title)}`
+    }));
+
     return {
-        packages,
+        packages: formattedPackages,
         pagination: {
             total,
             page: parseInt(page),
@@ -54,7 +68,7 @@ const getAllPackages = async (query = {}) => {
 };
 
 const getPackageById = async (id) => {
-    return await prisma.package.findUnique({
+    const pkg = await prisma.package.findUnique({
         where: { id: parseInt(id) },
         include: {
             user: {
@@ -73,12 +87,26 @@ const getPackageById = async (id) => {
             images: true,
             urls: true,
             comments: {
+                where: {
+                    parentId: null
+                },
                 include: {
                     user: {
                         select: {
                             id: true,
                             username: true,
                             avatarUrl: true
+                        }
+                    },
+                    replies: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    avatarUrl: true
+                                }
+                            }
                         }
                     }
                 },
@@ -88,6 +116,12 @@ const getPackageById = async (id) => {
             }
         }
     });
+
+    if (pkg) {
+        pkg.slug = `${pkg.id}-${slugify(pkg.title)}`;
+    }
+
+    return pkg;
 };
 
 const createPackage = async (data) => {

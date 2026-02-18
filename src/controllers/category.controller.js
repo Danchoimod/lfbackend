@@ -1,9 +1,29 @@
-const { createCategory: createCategoryService, getAllCategories, updateCategory: updateCategoryService } = require("../services/category.service.js");
+const { createCategory: createCategoryService, getAllCategories, updateCategory: updateCategoryService, getPackagesByCategory: getPackagesByCategoryService } = require("../services/category.service.js");
 
 async function getCategories(req, res) {
     try {
         const categories = await getAllCategories();
         res.json(categories);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+async function getPackagesByCategory(req, res) {
+    try {
+        const { slug } = req.params;
+        const result = await getPackagesByCategoryService(slug, req.query);
+
+        if (!result) {
+            return res.status(404).json({ error: "Category not found" });
+        }
+
+        res.json({
+            status: 'success',
+            data: result
+        });
     }
     catch (error) {
         console.error(error);
@@ -50,6 +70,7 @@ async function updateCategory(req, res) {
 
 module.exports = {
     getCategories,
+    getPackagesByCategory,
     createCategory,
     updateCategory
 };

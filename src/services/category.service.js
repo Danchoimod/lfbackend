@@ -57,6 +57,7 @@ async function getPackagesByCategory(slug, query = {}) {
                     ratingAvg: true,
                     user: {
                         select: {
+                            id: true,
                             username: true,
                             avatarUrl: true
                         }
@@ -78,7 +79,11 @@ async function getPackagesByCategory(slug, query = {}) {
     if (result && result.packages) {
         result.packages = result.packages.map(pkg => ({
             ...pkg,
-            slug: `${pkg.id}-${slugify(pkg.title)}`
+            slug: `${pkg.id}-${slugify(pkg.title)}`,
+            user: {
+                ...pkg.user,
+                slug: `${pkg.user.id}-${slugify(pkg.user.username)}`
+            }
         }));
     }
 

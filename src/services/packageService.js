@@ -26,6 +26,7 @@ const getAllPackages = async (query = {}) => {
                 ratingAvg: true,
                 user: {
                     select: {
+                        id: true,
                         username: true,
                         avatarUrl: true
                     }
@@ -53,7 +54,11 @@ const getAllPackages = async (query = {}) => {
 
     const formattedPackages = packages.map(pkg => ({
         ...pkg,
-        slug: `${pkg.id}-${slugify(pkg.title)}`
+        slug: `${pkg.id}-${slugify(pkg.title)}`,
+        user: {
+            ...pkg.user,
+            slug: `${pkg.user.id}-${slugify(pkg.user.username)}`
+        }
     }));
 
     return {
@@ -119,6 +124,9 @@ const getPackageById = async (id) => {
 
     if (pkg) {
         pkg.slug = `${pkg.id}-${slugify(pkg.title)}`;
+        if (pkg.user) {
+            pkg.user.slug = `${pkg.user.id}-${slugify(pkg.user.username)}`;
+        }
     }
 
     return pkg;

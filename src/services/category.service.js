@@ -63,6 +63,12 @@ async function getPackagesByCategory(slug, query = {}) {
                             avatarUrl: true
                         }
                     },
+                    category: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    },
                     images: {
                         take: 1,
                         select: {

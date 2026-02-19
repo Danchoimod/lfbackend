@@ -1,3 +1,4 @@
+const admin = require("firebase-admin");
 const { createUser, getUserByEmail } = require("../services/user.service.js");
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
@@ -77,7 +78,32 @@ async function signup(req, res) {
     }
 }
 
+async function logout(req, res) {
+    try {
+        const uid = req.user.uid;
+        if (!uid) {
+            return res.status(401).json({ error: "Unauthorized", message: "User session not found" });
+        }
+
+        // Revoke all refresh tokens for the user
+        await admin.auth().revokeRefreshTokens(uid);
+
+        // Optionally, you can also force a password change or other security measures
+        // For now, revoking tokens is what prevents future refreshes.
+
+        res.json({
+            message: "Successfully logged out and sessions revoked",
+            uid: uid
+        });
+    } catch (error) {
+        console.error("Logout controller error:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+}
+
 module.exports = {
     login,
-    signup
+    signup,
+    logout
 };
+

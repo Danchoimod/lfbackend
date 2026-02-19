@@ -5,9 +5,12 @@ const getAllPackages = async (query = {}) => {
     const { page = 1, limit = 10, search, catId } = query;
     const skip = (page - 1) * limit;
 
-    const where = {};
+    const where = { status: 1 };
     if (search) {
-        where.title = { contains: search };
+        where.OR = [
+            { title: { contains: search } },
+            { shortSummary: { contains: search } }
+        ];
     }
     if (catId) {
         where.catId = parseInt(catId);
@@ -74,8 +77,11 @@ const getAllPackages = async (query = {}) => {
 };
 
 const getPackageById = async (id) => {
-    const pkg = await prisma.package.findUnique({
-        where: { id: parseInt(id) },
+    const pkg = await prisma.package.findFirst({
+        where: {
+            id: parseInt(id),
+            status: 1
+        },
         include: {
             user: {
                 select: {

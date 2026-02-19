@@ -52,6 +52,7 @@ async function getPackagesByCategory(slug, query = {}) {
                 select: {
                     id: true,
                     title: true,
+                    shortSummary: true,
                     createdAt: true,
                     ratingCount: true,
                     ratingAvg: true,

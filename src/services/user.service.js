@@ -31,6 +31,7 @@ async function getUserProfile(userId) {
                 select: {
                     id: true,
                     title: true,
+                    shortSummary: true,
                     createdAt: true,
                     ratingCount: true,
                     ratingAvg: true,

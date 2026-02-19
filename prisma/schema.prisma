@@ -28,6 +28,8 @@ model User {
   followers Follow[] @relation("following")
   following Follow[] @relation("follower")
 
+  carousels Carousel[]
+
   @@map("users")
 }
 
@@ -45,26 +47,28 @@ model Follow {
 }
 
 model Package {
-  id          Int      @id @default(autoincrement())
-  title       String?
-  description String?  @db.Text // Dùng Text nếu mô tả dài
-  status      Int?     @default(0)
-  ratingCount Int?     @default(0) @map("rating_count")
-  ratingAvg   Float?   @default(0) @map("rating_avg")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at") // Tự động update thời gian
-  changelog   String?  @db.LongText
-  userId      Int      @map("user_id")
-  catId       Int      @map("category_id")
+  id           Int      @id @default(autoincrement())
+  title        String?
+  description  String?  @db.Text // Dùng Text nếu mô tả dài
+  shortSummary String?  @map("short_summary")
+  status       Int?     @default(0)
+  ratingCount  Int?     @default(0) @map("rating_count")
+  ratingAvg    Float?   @default(0) @map("rating_avg")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at") // Tự động update thời gian
+  changelog    String?  @db.LongText
+  userId       Int      @map("user_id")
+  catId        Int      @map("category_id")
 
   // Relations
-  user     User      @relation(fields: [userId], references: [id])
-  category Category  @relation(fields: [catId], references: [id])
-  versions Version[]
-  images   Image[]
-  comments Comment[]
-  ratings  Rating[]
-  urls     Url[]
+  user      User       @relation(fields: [userId], references: [id])
+  category  Category   @relation(fields: [catId], references: [id])
+  versions  Version[]
+  images    Image[]
+  comments  Comment[]
+  ratings   Rating[]
+  urls      Url[]
+  carousels Carousel[]
 
   @@map("packages")
 }
@@ -105,7 +109,8 @@ model Category {
   children Category[] @relation("CategoryHierarchy")
 
   // Quan hệ với Package
-  packages Package[]
+  packages  Package[]
+  carousels Carousel[]
 
   @@map("categories")
 }
@@ -167,4 +172,21 @@ model Url {
   package Package @relation(fields: [packageId], references: [id])
 
   @@map("urls")
+}
+
+model Carousel {
+  id        Int      @id @default(autoincrement())
+  title     String?
+  summary   String?
+  imageUrl  String?  @map("image_url")
+  catId     Int      @map("category_id")
+  userId    Int      @map("user_id")
+  packageId Int?     @map("package_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  category Category @relation(fields: [catId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  package  Package? @relation(fields: [packageId], references: [id])
+
+  @@map("carousels")
 }

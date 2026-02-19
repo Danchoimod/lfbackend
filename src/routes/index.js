@@ -6,6 +6,7 @@ const commentRoutes = require('./commentRoutes');
 const userRoutes = require('./userRoutes');
 const checkRoutes = require('./check');
 const exampleRoutes = require('./exampleRoutes');
+const carouselRoutes = require('./carouselRoutes');
 
 const router = express.Router();
 
@@ -21,5 +22,6 @@ router.use('/comments', commentRoutes);
 router.use('/users', userRoutes);
 router.use('/check', checkRoutes);
 router.use('/examples', exampleRoutes);
+router.use('/carousels', carouselRoutes);
 
 module.exports = router;

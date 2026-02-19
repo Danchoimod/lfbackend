@@ -21,6 +21,7 @@ const getAllPackages = async (query = {}) => {
             select: {
                 id: true,
                 title: true,
+                shortSummary: true,
                 createdAt: true,
                 ratingCount: true,
                 ratingAvg: true,
@@ -137,6 +138,7 @@ const createPackage = async (data) => {
         data: {
             title: data.title,
             description: data.description ?? null,
+            shortSummary: data.shortSummary ?? null,
             changelog: data.changelog ?? null,
             userId: data.userId,
             catId: parseInt(data.catId),
@@ -151,6 +153,7 @@ const updatePackage = async (id, data) => {
         data: {
             ...(data.title !== undefined && { title: data.title }),
             ...(data.description !== undefined && { description: data.description }),
+            ...(data.shortSummary !== undefined && { shortSummary: data.shortSummary }),
             ...(data.changelog !== undefined && { changelog: data.changelog }),
             ...(data.catId !== undefined && { catId: parseInt(data.catId) }),
             ...(data.status !== undefined && { status: data.status }),

@@ -13,11 +13,26 @@ async function createUser(data) {
     });
 }
 
+async function getUserByFirebaseUid(firebaseUid) {
+    return prisma.user.findUnique({
+        where: { firebaseUid },
+        include: {
+            _count: {
+                select: {
+                    followers: true,
+                    following: true
+                }
+            }
+        }
+    });
+}
+
 async function getUserProfile(userId) {
     const user = await prisma.user.findUnique({
         where: { id: parseInt(userId) },
         select: {
             id: true,
+            displayName: true,
             username: true,
             avatarUrl: true,
             status: true,
@@ -72,5 +87,6 @@ async function getUserProfile(userId) {
 module.exports = {
     getUserByEmail,
     createUser,
-    getUserProfile
+    getUserProfile,
+    getUserByFirebaseUid
 };

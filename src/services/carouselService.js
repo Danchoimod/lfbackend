@@ -13,6 +13,7 @@ const getAllCarousels = async () => {
             user: {
                 select: {
                     id: true,
+                    displayName: true,
                     username: true,
                     avatarUrl: true
                 }
@@ -36,6 +37,7 @@ const getAllCarousels = async () => {
         category: item.category,
         user: {
             avatar: item.user.avatarUrl,
+            displayName: item.user.displayName,
             username: item.user.username,
             slug: `${item.user.id}-${slugify(item.user.username)}`
         },

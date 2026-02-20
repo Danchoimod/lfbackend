@@ -13,6 +13,7 @@ model User {
   id          Int      @id @default(autoincrement())
   avatarUrl   String?  @map("avatar_url")
   firebaseUid String   @unique @map("firebase_uid")
+  displayName String?  @map("display_name")
   username    String?
   email       String   @unique
   status      Int?     @default(1)

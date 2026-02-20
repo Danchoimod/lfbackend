@@ -31,6 +31,7 @@ const getAllPackages = async (query = {}) => {
                 user: {
                     select: {
                         id: true,
+                        displayName: true,
                         username: true,
                         avatarUrl: true
                     }
@@ -86,6 +87,7 @@ const getPackageById = async (id) => {
             user: {
                 select: {
                     id: true,
+                    displayName: true,
                     username: true,
                     avatarUrl: true
                 }
@@ -106,6 +108,7 @@ const getPackageById = async (id) => {
                     user: {
                         select: {
                             id: true,
+                            displayName: true,
                             username: true,
                             avatarUrl: true
                         }
@@ -115,6 +118,7 @@ const getPackageById = async (id) => {
                             user: {
                                 select: {
                                     id: true,
+                                    displayName: true,
                                     username: true,
                                     avatarUrl: true
                                 }

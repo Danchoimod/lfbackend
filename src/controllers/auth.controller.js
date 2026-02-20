@@ -37,7 +37,7 @@ async function login(req, res) {
 
 async function signup(req, res) {
     try {
-        const { email, password, username, avatarUrl } = req.body;
+        const { email, password, username, displayName, avatarUrl } = req.body;
         if (!email || !password) {
             return res.status(400).json({ error: "Email and password are required" });
         }
@@ -63,6 +63,7 @@ async function signup(req, res) {
             email,
             firebaseUid,
             username,
+            displayName,
             avatarUrl
         });
         res.status(201).json({

@@ -7,6 +7,8 @@ const userRoutes = require('./userRoutes');
 const checkRoutes = require('./check');
 const exampleRoutes = require('./exampleRoutes');
 const carouselRoutes = require('./carouselRoutes');
+const { checkAuth } = require('../middlewares/auth.middleware');
+const userController = require('../controllers/userController');
 
 const router = express.Router();
 
@@ -14,6 +16,8 @@ const router = express.Router();
 router.get('/', (req, res) => {
     res.json({ message: "Welcome to LF Backend API" });
 });
+
+router.get('/me', checkAuth, userController.getMe);
 
 router.use('/auth', authRoutes);
 router.use('/categories', categoryRoutes);

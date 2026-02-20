@@ -12,6 +12,7 @@ const createComment = async (data) => {
             user: {
                 select: {
                     id: true,
+                    displayName: true,
                     username: true,
                     avatarUrl: true
                 }
@@ -36,6 +37,7 @@ const getCommentsByPackageId = async (packageId, query = {}) => {
                 user: {
                     select: {
                         id: true,
+                        displayName: true,
                         username: true,
                         avatarUrl: true
                     }
@@ -45,6 +47,7 @@ const getCommentsByPackageId = async (packageId, query = {}) => {
                         user: {
                             select: {
                                 id: true,
+                                displayName: true,
                                 username: true,
                                 avatarUrl: true
                             }

@@ -7,6 +7,7 @@ const userRoutes = require('./userRoutes');
 const checkRoutes = require('./check');
 const exampleRoutes = require('./exampleRoutes');
 const carouselRoutes = require('./carouselRoutes');
+const versionRoutes = require('./versionRoutes');
 const { checkAuth } = require('../middlewares/auth.middleware');
 const userController = require('../controllers/userController');
 
@@ -27,5 +28,6 @@ router.use('/users', userRoutes);
 router.use('/check', checkRoutes);
 router.use('/examples', exampleRoutes);
 router.use('/carousels', carouselRoutes);
+router.use('/versions', versionRoutes);
 
 module.exports = router;

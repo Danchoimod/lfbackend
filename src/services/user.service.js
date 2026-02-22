@@ -27,52 +27,63 @@ async function getUserByFirebaseUid(firebaseUid) {
     });
 }
 
-async function getUserProfile(userId) {
-    const user = await prisma.user.findUnique({
-        where: { id: parseInt(userId) },
-        select: {
-            id: true,
-            displayName: true,
-            username: true,
-            avatarUrl: true,
-            status: true,
-            createdAt: true,
-            _count: {
-                select: {
-                    followers: true
-                }
-            },
-            packages: {
-                select: {
-                    id: true,
-                    title: true,
-                    shortSummary: true,
-                    createdAt: true,
-                    ratingCount: true,
-                    ratingAvg: true,
-                    category: {
-                        select: {
-                            id: true,
-                            name: true,
-                            param: true
-                        }
-                    },
-                    images: {
-                        take: 1,
-                        select: {
-                            url: true
-                        }
+async function getUserProfile(userId, currentUserId = null) {
+    const [user, followRecord] = await Promise.all([
+        prisma.user.findUnique({
+            where: { id: parseInt(userId) },
+            select: {
+                id: true,
+                displayName: true,
+                username: true,
+                avatarUrl: true,
+                status: true,
+                createdAt: true,
+                _count: {
+                    select: {
+                        followers: true
                     }
                 },
-                orderBy: {
-                    createdAt: 'desc'
+                packages: {
+                    select: {
+                        id: true,
+                        title: true,
+                        shortSummary: true,
+                        createdAt: true,
+                        ratingCount: true,
+                        ratingAvg: true,
+                        category: {
+                            select: {
+                                id: true,
+                                name: true,
+                                param: true
+                            }
+                        },
+                        images: {
+                            take: 1,
+                            select: {
+                                url: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 }
             }
-        }
-    });
+        }),
+        currentUserId ? prisma.follow.findUnique({
+            where: {
+                followerId_followingId: {
+                    followerId: parseInt(currentUserId),
+                    followingId: parseInt(userId)
+                }
+            }
+        }) : null
+    ]);
 
     if (user) {
         user.slug = `${user.id}-${slugify(user.username)}`;
+        user.isFollowing = !!followRecord; // Trả về true/false
         if (user.packages) {
             user.packages = user.packages.map(pkg => ({
                 ...pkg,
@@ -127,10 +138,41 @@ async function getFollowing(userId, page = 1, limit = 10) {
     };
 }
 
+async function toggleFollow(followerId, followingId) {
+    if (parseInt(followerId) === parseInt(followingId)) {
+        throw new Error('You cannot follow yourself');
+    }
+
+    const existingFollow = await prisma.follow.findUnique({
+        where: {
+            followerId_followingId: {
+                followerId: parseInt(followerId),
+                followingId: parseInt(followingId)
+            }
+        }
+    });
+
+    if (existingFollow) {
+        await prisma.follow.delete({
+            where: { id: existingFollow.id }
+        });
+        return { followed: false };
+    } else {
+        await prisma.follow.create({
+            data: {
+                followerId: parseInt(followerId),
+                followingId: parseInt(followingId)
+            }
+        });
+        return { followed: true };
+    }
+}
+
 module.exports = {
     getUserByEmail,
     createUser,
     getUserProfile,
     getUserByFirebaseUid,
-    getFollowing
+    getFollowing,
+    toggleFollow
 };

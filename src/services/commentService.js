@@ -21,7 +21,7 @@ const createComment = async (data) => {
     });
 };
 
-const getCommentsByPackageId = async (packageId, query = {}) => {
+const getCommentsByPackageId = async (packageId, query = {}, currentUserId = null) => {
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
@@ -67,8 +67,17 @@ const getCommentsByPackageId = async (packageId, query = {}) => {
         })
     ]);
 
+    const formattedComments = comments.map(comment => ({
+        ...comment,
+        isMine: currentUserId ? comment.userId === currentUserId : false,
+        replies: comment.replies.map(reply => ({
+            ...reply,
+            isMine: currentUserId ? reply.userId === currentUserId : false
+        }))
+    }));
+
     return {
-        comments,
+        comments: formattedComments,
         pagination: {
             total,
             page: parseInt(page),

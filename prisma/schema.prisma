@@ -20,10 +20,11 @@ model User {
   createdAt   DateTime @default(now()) @map("create_at")
 
   // Relations
-  packages Package[]
-  comments Comment[]
-  ratings  Rating[]
-  reports  Report[]
+  packages      Package[]
+  comments      Comment[]
+  ratings       Rating[]
+  reports       Report[]  @relation("FiledReports")
+  targetReports Report[]  @relation("ReceivedReports")
 
   // Follows (Self-relation)
   followers Follow[] @relation("following")
@@ -70,13 +71,14 @@ model Package {
   ratings   Rating[]
   urls      Url[]
   carousels Carousel[]
+  reports   Report[]
 
   @@map("packages")
 }
 
 model Version {
   id            Int      @id @default(autoincrement())
-  platformType  String?  @map("platform_type")
+  platformType  Int?     @map("platform_type")
   versionNumber String?  @map("version_number")
   url           String?
   createdAt     DateTime @default(now()) @map("created_at")
@@ -151,14 +153,18 @@ model Rating {
 }
 
 model Report {
-  id         Int      @id @default(autoincrement())
-  reason     String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  userId     Int      @map("user_id")
-  targetId   Int      @map("target_id")
-  targetType String   @map("target_type")
+  id        Int      @id @default(autoincrement())
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id])
+  userId Int  @map("user_id") // Người tạo report
+  user   User @relation("FiledReports", fields: [userId], references: [id])
+
+  targetUserId Int?  @map("target_user_id") // User bị report (nullable)
+  targetUser   User? @relation("ReceivedReports", fields: [targetUserId], references: [id])
+
+  packageId Int?     @map("package_id") // Package bị report (nullable)
+  package   Package? @relation(fields: [packageId], references: [id])
 
   @@map("reports")
 }

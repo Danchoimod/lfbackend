@@ -23,13 +23,33 @@ const createComment = catchAsync(async (req, res, next) => {
     res.status(201).json({
         status: 'success',
         data: {
-            comment
+            comment: {
+                ...comment,
+                isMine: true
+            }
         }
     });
 });
 
 const getCommentsByPackageId = catchAsync(async (req, res, next) => {
-    const result = await commentService.getCommentsByPackageId(req.params.packageId, req.query);
+    // Optional: Get current user ID if logged in to set isMine flag
+    let currentUserId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const idToken = authHeader.split(' ')[1];
+        const admin = require("firebase-admin");
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const user = await prisma.user.findUnique({
+                where: { firebaseUid: decodedToken.uid }
+            });
+            if (user) currentUserId = user.id;
+        } catch (error) {
+            // Ignore token error for public route
+        }
+    }
+
+    const result = await commentService.getCommentsByPackageId(req.params.packageId, req.query, currentUserId);
 
     res.status(200).json({
         status: 'success',

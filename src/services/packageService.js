@@ -293,14 +293,14 @@ const updateMyPackage = async (userId, id, data) => {
         };
     }
 
-    // Update versions if provided
+    // Update versions if provided (Regular users can only assign existing versions)
     if (versions && Array.isArray(versions)) {
+        const versionIds = versions
+            .filter(v => v.id)
+            .map(v => ({ id: parseInt(v.id) }));
+
         updatePayload.versions = {
-            deleteMany: {}, // Xóa hết version cũ
-            create: versions.map(v => ({
-                platformType: v.platformType,
-                versionNumber: v.versionNumber
-            }))
+            set: versionIds
         };
     }
 

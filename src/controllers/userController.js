@@ -31,7 +31,24 @@ const getUserProfile = catchAsync(async (req, res, next) => {
     });
 });
 
+const getFollowing = catchAsync(async (req, res, next) => {
+    // For "my following", we need the DB ID of the current user
+    const user = await userService.getUserByFirebaseUid(req.user.uid);
+    if (!user) {
+        return next(new AppError('No user found', 404));
+    }
+
+    const { page = 1, limit = 10 } = req.query;
+    const result = await userService.getFollowing(user.id, page, limit);
+
+    res.status(200).json({
+        status: 'success',
+        ...result
+    });
+});
+
 module.exports = {
     getUserProfile,
-    getMe
+    getMe,
+    getFollowing
 };

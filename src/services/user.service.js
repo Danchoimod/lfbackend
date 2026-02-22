@@ -84,9 +84,53 @@ async function getUserProfile(userId) {
     return user;
 }
 
+async function getFollowing(userId, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const [following, total] = await Promise.all([
+        prisma.follow.findMany({
+            where: { followerId: parseInt(userId) },
+            include: {
+                following: {
+                    select: {
+                        id: true,
+                        displayName: true,
+                        username: true,
+                        avatarUrl: true
+                    }
+                }
+            },
+            skip: parseInt(skip),
+            take: parseInt(limit),
+            orderBy: { createdAt: 'desc' }
+        }),
+        prisma.follow.count({
+            where: { followerId: parseInt(userId) }
+        })
+    ]);
+
+    const data = following.map(f => ({
+        id: f.following.id,
+        avatar: f.following.avatarUrl,
+        displayname: f.following.displayName,
+        slug: `${f.following.id}-${slugify(f.following.username)}`
+    }));
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        }
+    };
+}
+
 module.exports = {
     getUserByEmail,
     createUser,
     getUserProfile,
-    getUserByFirebaseUid
+    getUserByFirebaseUid,
+    getFollowing
 };

@@ -44,6 +44,7 @@ async function getUserProfile(userId, currentUserId = null) {
                     }
                 },
                 packages: {
+                    where: { status: 1 },
                     select: {
                         id: true,
                         title: true,
@@ -168,11 +169,25 @@ async function toggleFollow(followerId, followingId) {
     }
 }
 
+
+async function updateProfile(userId, data) {
+    const { displayName, username, avatarUrl } = data;
+
+    return prisma.user.update({
+        where: { id: parseInt(userId) },
+        data: {
+            ...(displayName !== undefined && { displayName }),
+            ...(avatarUrl !== undefined && { avatarUrl }),
+        },
+    });
+}
+
 module.exports = {
     getUserByEmail,
     createUser,
     getUserProfile,
     getUserByFirebaseUid,
     getFollowing,
-    toggleFollow
+    toggleFollow,
+    updateProfile
 };

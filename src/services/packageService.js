@@ -262,6 +262,66 @@ const getMyPackageById = async (userId, id) => {
     return pkg;
 };
 
+const createMyPackage = async (userId, data) => {
+    const { status, images, urls, versions, ...createData } = data;
+
+    const createPayload = {
+        title: createData.title,
+        description: createData.description ?? null,
+        shortSummary: createData.shortSummary ?? null,
+        changelog: createData.changelog ?? null,
+        userId: parseInt(userId),
+        catId: parseInt(createData.catId),
+        status: 0,
+    };
+
+    if (images && Array.isArray(images)) {
+        createPayload.images = {
+            create: images.map(img => ({
+                url: typeof img === 'string' ? img : img.url
+            }))
+        };
+    }
+
+    if (urls && Array.isArray(urls)) {
+        createPayload.urls = {
+            create: urls.map(u => ({
+                name: u.name,
+                url: u.url
+            }))
+        };
+    }
+
+    if (versions && Array.isArray(versions)) {
+        const versionIds = versions
+            .filter(v => v.id)
+            .map(v => ({ id: parseInt(v.id) }));
+
+        createPayload.versions = {
+            connect: versionIds
+        };
+    }
+
+    return prisma.package.create({
+        data: createPayload,
+        include: {
+            images: true,
+            urls: true,
+            versions: {
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                select: {
+                    id: true,
+                    platformType: true,
+                    versionNumber: true
+                }
+            },
+            category: true
+        }
+    });
+};
+
 const updateMyPackage = async (userId, id, data) => {
     // Explicitly remove status from data to prevent status updates via this API
     const { status, images, urls, versions, ...updateData } = data;
@@ -272,6 +332,7 @@ const updateMyPackage = async (userId, id, data) => {
         ...(updateData.shortSummary !== undefined && { shortSummary: updateData.shortSummary }),
         ...(updateData.changelog !== undefined && { changelog: updateData.changelog }),
         ...(updateData.catId !== undefined && { catId: parseInt(updateData.catId) }),
+        status: 0,
     };
 
     if (images && Array.isArray(images)) {
@@ -328,12 +389,51 @@ const updateMyPackage = async (userId, id, data) => {
     });
 };
 
+const deleteMyPackage = async (userId, id) => {
+    // 1. Check if package exists and belongs to user
+    const pkg = await prisma.package.findFirst({
+        where: {
+            id: parseInt(id),
+            userId: parseInt(userId)
+        }
+    });
+
+    if (!pkg) {
+        throw new Error('Package not found or you do not have permission');
+    }
+
+    // 2. Perform deletion in a transaction
+    return await prisma.$transaction(async (tx) => {
+        // Delete related records
+        // Note: Comments might have replies, but deleteMany where packageId should work in MySQL
+        // If there are foreign key constraints without cascade, we must delete them manually.
+        await tx.image.deleteMany({ where: { packageId: parseInt(id) } });
+        await tx.url.deleteMany({ where: { packageId: parseInt(id) } });
+        await tx.rating.deleteMany({ where: { packageId: parseInt(id) } });
+
+        // Delete comments: replies first, then parents
+        await tx.comment.deleteMany({ where: { packageId: parseInt(id), parentId: { not: null } } });
+        await tx.comment.deleteMany({ where: { packageId: parseInt(id), parentId: null } });
+
+        await tx.report.deleteMany({ where: { packageId: parseInt(id) } });
+        await tx.carousel.deleteMany({ where: { packageId: parseInt(id) } });
+
+
+        // Delete the package
+        return tx.package.delete({
+            where: { id: parseInt(id) }
+        });
+    });
+};
+
 module.exports = {
+    createMyPackage,
     getAllPackages,
     getPackageById,
     createPackage,
     updatePackage,
     getUserPackages,
     getMyPackageById,
-    updateMyPackage
+    updateMyPackage,
+    deleteMyPackage
 };

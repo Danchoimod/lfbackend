@@ -1,4 +1,5 @@
 const packageService = require('../services/packageService');
+const ratingService = require('../services/ratingService');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../exceptions/AppError');
 
@@ -92,6 +93,26 @@ const getMyPackageDetail = catchAsync(async (req, res, next) => {
     });
 });
 
+const createMyPackage = catchAsync(async (req, res, next) => {
+    // 1. Get current user DB ID from Firebase UID
+    const userService = require('../services/user.service');
+    const user = await userService.getUserByFirebaseUid(req.user.uid);
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    // 2. Create package
+    const pkg = await packageService.createMyPackage(user.id, req.body);
+
+    res.status(201).json({
+        status: 'success',
+        data: {
+            package: pkg
+        }
+    });
+});
+
 const updateMyPackage = catchAsync(async (req, res, next) => {
     // 1. Get current user DB ID from Firebase UID
     const userService = require('../services/user.service');
@@ -112,6 +133,73 @@ const updateMyPackage = catchAsync(async (req, res, next) => {
     });
 });
 
+const ratePackage = catchAsync(async (req, res, next) => {
+    const { score } = req.body;
+    const { id: packageId } = req.params;
+
+    if (score === undefined || score < 1 || score > 5) {
+        return next(new AppError('Score must be between 1 and 5', 400));
+    }
+
+    // 1. Get current user DB ID from Firebase UID
+    const userService = require('../services/user.service');
+    const user = await userService.getUserByFirebaseUid(req.user.uid);
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    // 2. Rate package
+    const updatedPackage = await ratingService.ratePackage(user.id, packageId, score);
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            package: updatedPackage
+        }
+    });
+});
+
+const getMyRating = catchAsync(async (req, res, next) => {
+    const { id: packageId } = req.params;
+
+    // 1. Get current user DB ID from Firebase UID
+    const userService = require('../services/user.service');
+    const user = await userService.getUserByFirebaseUid(req.user.uid);
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    // 2. Get rating
+    const rating = await ratingService.getMyRating(user.id, packageId);
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            rating: rating ? rating.score : null
+        }
+    });
+});
+
+const deleteMyPackage = catchAsync(async (req, res, next) => {
+    // 1. Get current user DB ID from Firebase UID
+    const userService = require('../services/user.service');
+    const user = await userService.getUserByFirebaseUid(req.user.uid);
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    // 2. Delete package
+    await packageService.deleteMyPackage(user.id, req.params.id);
+
+    res.status(204).json({
+        status: 'success',
+        data: null
+    });
+});
+
 module.exports = {
     getAllPackages,
     getPackageById,
@@ -119,5 +207,10 @@ module.exports = {
     updatePackage,
     getMyPackages,
     getMyPackageDetail,
-    updateMyPackage
+    createMyPackage,
+    updateMyPackage,
+    deleteMyPackage,
+    ratePackage,
+    getMyRating
 };
+

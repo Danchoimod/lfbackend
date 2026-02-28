@@ -47,6 +47,7 @@ async function getPackagesByCategory(slug, query = {}) {
         where: { param: slug },
         include: {
             packages: {
+                where: { status: 1 },
                 skip: parseInt(skip),
                 take: parseInt(limit),
                 select: {

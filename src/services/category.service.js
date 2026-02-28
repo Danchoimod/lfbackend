@@ -43,59 +43,82 @@ async function getPackagesByCategory(slug, query = {}) {
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    const result = await prisma.category.findFirst({
-        where: { param: slug },
-        include: {
-            packages: {
-                where: { status: 1 },
-                skip: parseInt(skip),
-                take: parseInt(limit),
-                select: {
-                    id: true,
-                    title: true,
-                    shortSummary: true,
-                    createdAt: true,
-                    ratingCount: true,
-                    ratingAvg: true,
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            avatarUrl: true
-                        }
-                    },
-                    category: {
-                        select: {
-                            id: true,
-                            name: true
-                        }
-                    },
-                    images: {
-                        take: 1,
-                        select: {
-                            url: true
-                        }
-                    }
-                },
-                orderBy: {
-                    createdAt: 'desc'
-                }
-            }
-        }
+    // 1. Tìm thông tin Category
+    const category = await prisma.category.findFirst({
+        where: { param: slug }
     });
 
-    if (result && result.packages) {
-        result.packages = result.packages.map(pkg => ({
-            ...pkg,
-            slug: `${pkg.id}-${slugify(pkg.title)}`,
-            user: {
-                ...pkg.user,
-                slug: `${pkg.user.id}-${slugify(pkg.user.username)}`
-            }
-        }));
-    }
+    if (!category) return null;
 
-    return result;
+    // 2. Lấy danh sách package kèm total count theo categoryId
+    const [packages, total] = await Promise.all([
+        prisma.package.findMany({
+            where: {
+                catId: category.id,
+                status: 1
+            },
+            skip: parseInt(skip),
+            take: parseInt(limit),
+            select: {
+                id: true,
+                title: true,
+                slug: true,
+                shortSummary: true,
+                createdAt: true,
+                ratingCount: true,
+                ratingAvg: true,
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        avatarUrl: true,
+                        slug: true
+                    }
+                },
+                category: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                images: {
+                    take: 1,
+                    select: {
+                        url: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        }),
+        prisma.package.count({
+            where: {
+                catId: category.id,
+                status: 1
+            }
+        })
+    ]);
+
+    const formattedPackages = packages.map(pkg => ({
+        ...pkg,
+        slug: pkg.slug || `${pkg.id}-${slugify(pkg.title)}`,
+        user: {
+            ...pkg.user,
+            slug: pkg.user.slug || `${pkg.user.id}-${slugify(pkg.user.username)}`
+        }
+    }));
+
+    return {
+        category,
+        packages: formattedPackages,
+        pagination: {
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        }
+    };
 }
 
 module.exports = {

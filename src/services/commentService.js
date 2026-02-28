@@ -14,7 +14,8 @@ const createComment = async (data) => {
                     id: true,
                     displayName: true,
                     username: true,
-                    avatarUrl: true
+                    avatarUrl: true,
+                    slug: true
                 }
             }
         }
@@ -22,7 +23,7 @@ const createComment = async (data) => {
 };
 
 const getCommentsByPackageId = async (packageId, query = {}, currentUserId = null) => {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const [comments, total] = await Promise.all([
@@ -39,7 +40,8 @@ const getCommentsByPackageId = async (packageId, query = {}, currentUserId = nul
                         id: true,
                         displayName: true,
                         username: true,
-                        avatarUrl: true
+                        avatarUrl: true,
+                        slug: true
                     }
                 },
                 replies: {
@@ -49,7 +51,8 @@ const getCommentsByPackageId = async (packageId, query = {}, currentUserId = nul
                                 id: true,
                                 displayName: true,
                                 username: true,
-                                avatarUrl: true
+                                avatarUrl: true,
+                                slug: true
                             }
                         }
                     }

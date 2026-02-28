@@ -24,6 +24,7 @@ const getAllPackages = async (query = {}) => {
             select: {
                 id: true,
                 title: true,
+                slug: true,
                 shortSummary: true,
                 createdAt: true,
                 ratingCount: true,
@@ -34,7 +35,8 @@ const getAllPackages = async (query = {}) => {
                         displayName: true,
                         username: true,
                         avatarUrl: true,
-                        status: true
+                        status: true,
+                        slug: true
                     }
                 },
                 category: {
@@ -58,17 +60,8 @@ const getAllPackages = async (query = {}) => {
         prisma.package.count({ where })
     ]);
 
-    const formattedPackages = packages.map(pkg => ({
-        ...pkg,
-        slug: `${pkg.id}-${slugify(pkg.title)}`,
-        user: {
-            ...pkg.user,
-            slug: `${pkg.user.id}-${slugify(pkg.user.username)}`
-        }
-    }));
-
     return {
-        packages: formattedPackages,
+        packages,
         pagination: {
             total,
             page: parseInt(page),
@@ -78,72 +71,86 @@ const getAllPackages = async (query = {}) => {
     };
 };
 
-const getPackageById = async (id) => {
-    const pkg = await prisma.package.findFirst({
-        where: {
-            id: parseInt(id),
-            status: 1
+const getPackageById = async (idOrSlug) => {
+    let where = {};
+    if (isNaN(idOrSlug)) {
+        where = { slug: idOrSlug, status: 1 };
+    } else {
+        where = { id: parseInt(idOrSlug), status: 1 };
+    }
+
+    const include = {
+        user: {
+            select: {
+                id: true,
+                displayName: true,
+                username: true,
+                avatarUrl: true,
+                status: true,
+                slug: true
+            }
         },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    displayName: true,
-                    username: true,
-                    avatarUrl: true,
-                    status: true
-                }
+        category: true,
+        versions: {
+            orderBy: {
+                createdAt: 'desc'
             },
-            category: true,
-            versions: {
-                orderBy: {
-                    createdAt: 'desc'
-                },
-                select: {
-                    id: true,
-                    platformType: true,
-                    versionNumber: true
-                }
+            select: {
+                id: true,
+                platformType: true,
+                versionNumber: true
+            }
+        },
+        images: true,
+        urls: true,
+        comments: {
+            where: {
+                parentId: null
             },
-            images: true,
-            urls: true,
-            comments: {
-                where: {
-                    parentId: null
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        displayName: true,
+                        username: true,
+                        avatarUrl: true,
+                        slug: true
+                    }
                 },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            displayName: true,
-                            username: true,
-                            avatarUrl: true
-                        }
-                    },
-                    replies: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    displayName: true,
-                                    username: true,
-                                    avatarUrl: true
-                                }
+                replies: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                displayName: true,
+                                username: true,
+                                avatarUrl: true,
+                                slug: true
                             }
                         }
                     }
-                },
-                orderBy: {
-                    createdAt: 'desc'
                 }
+            },
+            orderBy: {
+                createdAt: 'desc'
             }
         }
+    };
+
+    let pkg = await prisma.package.findFirst({
+        where,
+        include
     });
 
-    if (pkg) {
-        pkg.slug = `${pkg.id}-${slugify(pkg.title)}`;
-        if (pkg.user) {
-            pkg.user.slug = `${pkg.user.id}-${slugify(pkg.user.username)}`;
+    // Fallback: If not found and input was a slug with a numeric prefix (id-name)
+    if (!pkg && isNaN(idOrSlug) && idOrSlug.includes('-')) {
+        const idPart = idOrSlug.split('-')[0];
+        const id = parseInt(idPart);
+        if (!isNaN(id)) {
+            pkg = await prisma.package.findFirst({
+                where: { id: id, status: 1 },
+                include
+            });
         }
     }
 
@@ -151,9 +158,11 @@ const getPackageById = async (id) => {
 };
 
 const createPackage = async (data) => {
+    const slug = `${slugify(data.title)}-${Date.now()}`;
     return prisma.package.create({
         data: {
             title: data.title,
+            slug,
             description: data.description ?? null,
             shortSummary: data.shortSummary ?? null,
             changelog: data.changelog ?? null,
@@ -165,21 +174,26 @@ const createPackage = async (data) => {
 };
 
 const updatePackage = async (id, data) => {
+    const updateData = {
+        ...(data.title !== undefined && {
+            title: data.title,
+            slug: `${slugify(data.title)}-${id}`
+        }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.shortSummary !== undefined && { shortSummary: data.shortSummary }),
+        ...(data.changelog !== undefined && { changelog: data.changelog }),
+        ...(data.catId !== undefined && { catId: parseInt(data.catId) }),
+        ...(data.status !== undefined && { status: data.status }),
+    };
+
     return prisma.package.update({
         where: { id: parseInt(id) },
-        data: {
-            ...(data.title !== undefined && { title: data.title }),
-            ...(data.description !== undefined && { description: data.description }),
-            ...(data.shortSummary !== undefined && { shortSummary: data.shortSummary }),
-            ...(data.changelog !== undefined && { changelog: data.changelog }),
-            ...(data.catId !== undefined && { catId: parseInt(data.catId) }),
-            ...(data.status !== undefined && { status: data.status }),
-        },
+        data: updateData,
     });
 };
 
 const getUserPackages = async (userId, query = {}) => {
-    const { page = 1, limit = 10, status } = query;
+    const { page = 1, limit = 5, status } = query;
     const skip = (page - 1) * limit;
 
     const where = { userId: parseInt(userId) };
@@ -195,6 +209,7 @@ const getUserPackages = async (userId, query = {}) => {
             select: {
                 id: true,
                 title: true,
+                slug: true,
                 status: true,
                 createdAt: true,
                 updatedAt: true,
@@ -216,13 +231,8 @@ const getUserPackages = async (userId, query = {}) => {
         prisma.package.count({ where })
     ]);
 
-    const formattedPackages = packages.map(pkg => ({
-        ...pkg,
-        slug: `${pkg.id}-${slugify(pkg.title)}`
-    }));
-
     return {
-        packages: formattedPackages,
+        packages,
         pagination: {
             total,
             page: parseInt(page),
@@ -255,18 +265,16 @@ const getMyPackageById = async (userId, id) => {
         }
     });
 
-    if (pkg) {
-        pkg.slug = `${pkg.id}-${slugify(pkg.title)}`;
-    }
-
     return pkg;
 };
 
 const createMyPackage = async (userId, data) => {
     const { status, images, urls, versions, ...createData } = data;
+    const slug = `${slugify(createData.title)}-${Date.now()}`;
 
     const createPayload = {
         title: createData.title,
+        slug,
         description: createData.description ?? null,
         shortSummary: createData.shortSummary ?? null,
         changelog: createData.changelog ?? null,
@@ -323,11 +331,13 @@ const createMyPackage = async (userId, data) => {
 };
 
 const updateMyPackage = async (userId, id, data) => {
-    // Explicitly remove status from data to prevent status updates via this API
     const { status, images, urls, versions, ...updateData } = data;
 
     const updatePayload = {
-        ...(updateData.title !== undefined && { title: updateData.title }),
+        ...(updateData.title !== undefined && {
+            title: updateData.title,
+            slug: `${slugify(updateData.title)}-${id}`
+        }),
         ...(updateData.description !== undefined && { description: updateData.description }),
         ...(updateData.shortSummary !== undefined && { shortSummary: updateData.shortSummary }),
         ...(updateData.changelog !== undefined && { changelog: updateData.changelog }),
@@ -354,7 +364,6 @@ const updateMyPackage = async (userId, id, data) => {
         };
     }
 
-    // Update versions if provided (Regular users can only assign existing versions)
     if (versions && Array.isArray(versions)) {
         const versionIds = versions
             .filter(v => v.id)
@@ -390,39 +399,11 @@ const updateMyPackage = async (userId, id, data) => {
 };
 
 const deleteMyPackage = async (userId, id) => {
-    // 1. Check if package exists and belongs to user
-    const pkg = await prisma.package.findFirst({
+    return prisma.package.delete({
         where: {
             id: parseInt(id),
             userId: parseInt(userId)
         }
-    });
-
-    if (!pkg) {
-        throw new Error('Package not found or you do not have permission');
-    }
-
-    // 2. Perform deletion in a transaction
-    return await prisma.$transaction(async (tx) => {
-        // Delete related records
-        // Note: Comments might have replies, but deleteMany where packageId should work in MySQL
-        // If there are foreign key constraints without cascade, we must delete them manually.
-        await tx.image.deleteMany({ where: { packageId: parseInt(id) } });
-        await tx.url.deleteMany({ where: { packageId: parseInt(id) } });
-        await tx.rating.deleteMany({ where: { packageId: parseInt(id) } });
-
-        // Delete comments: replies first, then parents
-        await tx.comment.deleteMany({ where: { packageId: parseInt(id), parentId: { not: null } } });
-        await tx.comment.deleteMany({ where: { packageId: parseInt(id), parentId: null } });
-
-        await tx.report.deleteMany({ where: { packageId: parseInt(id) } });
-        await tx.carousel.deleteMany({ where: { packageId: parseInt(id) } });
-
-
-        // Delete the package
-        return tx.package.delete({
-            where: { id: parseInt(id) }
-        });
     });
 };
 

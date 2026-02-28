@@ -8,8 +8,12 @@ async function getUserByEmail(email) {
 }
 
 async function createUser(data) {
+    const slug = `${slugify(data.username || data.displayName)}-${Date.now()}`;
     return prisma.user.create({
-        data,
+        data: {
+            ...data,
+            slug
+        },
     });
 }
 
@@ -27,76 +31,133 @@ async function getUserByFirebaseUid(firebaseUid) {
     });
 }
 
-async function getUserProfile(userId, currentUserId = null) {
-    const [user, followRecord] = await Promise.all([
-        prisma.user.findUnique({
-            where: { id: parseInt(userId) },
-            select: {
-                id: true,
-                displayName: true,
-                username: true,
-                avatarUrl: true,
-                status: true,
-                createdAt: true,
-                _count: {
-                    select: {
-                        followers: true
-                    }
-                },
-                packages: {
-                    where: { status: 1 },
-                    select: {
-                        id: true,
-                        title: true,
-                        shortSummary: true,
-                        createdAt: true,
-                        ratingCount: true,
-                        ratingAvg: true,
-                        category: {
-                            select: {
-                                id: true,
-                                name: true,
-                                param: true
-                            }
-                        },
-                        images: {
-                            take: 1,
-                            select: {
-                                url: true
-                            }
+async function getUserProfile(idOrSlug, currentUserId = null) {
+    let where = {};
+    if (isNaN(idOrSlug)) {
+        where = { slug: idOrSlug };
+    } else {
+        where = { id: parseInt(idOrSlug) };
+    }
+
+    let user = await prisma.user.findUnique({
+        where,
+        select: {
+            id: true,
+            displayName: true,
+            username: true,
+            slug: true,
+            avatarUrl: true,
+            status: true,
+            createdAt: true,
+            _count: {
+                select: {
+                    followers: true
+                }
+            },
+            packages: {
+                where: { status: 1 },
+                select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    shortSummary: true,
+                    createdAt: true,
+                    ratingCount: true,
+                    ratingAvg: true,
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                            param: true
                         }
                     },
-                    orderBy: {
-                        createdAt: 'desc'
+                    images: {
+                        take: 1,
+                        select: {
+                            url: true
+                        }
                     }
+                },
+                orderBy: {
+                    createdAt: 'desc'
                 }
             }
-        }),
-        currentUserId ? prisma.follow.findUnique({
+        }
+    });
+
+    // Fallback: If not found and input was a slug with a numeric prefix (id-name)
+    if (!user && isNaN(idOrSlug) && idOrSlug.includes('-')) {
+        const idPart = idOrSlug.split('-')[0];
+        const id = parseInt(idPart);
+        if (!isNaN(id)) {
+            user = await prisma.user.findUnique({
+                where: { id: id },
+                select: {
+                    id: true,
+                    displayName: true,
+                    username: true,
+                    slug: true,
+                    avatarUrl: true,
+                    status: true,
+                    createdAt: true,
+                    _count: {
+                        select: {
+                            followers: true
+                        }
+                    },
+                    packages: {
+                        where: { status: 1 },
+                        select: {
+                            id: true,
+                            title: true,
+                            slug: true,
+                            shortSummary: true,
+                            createdAt: true,
+                            ratingCount: true,
+                            ratingAvg: true,
+                            category: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    param: true
+                                }
+                            },
+                            images: {
+                                take: 1,
+                                select: {
+                                    url: true
+                                }
+                            }
+                        },
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    if (!user) return null;
+
+    if (currentUserId) {
+        const followRecord = await prisma.follow.findUnique({
             where: {
                 followerId_followingId: {
                     followerId: parseInt(currentUserId),
-                    followingId: parseInt(userId)
+                    followingId: user.id
                 }
             }
-        }) : null
-    ]);
-
-    if (user) {
-        user.slug = `${user.id}-${slugify(user.username)}`;
-        user.isFollowing = !!followRecord; // Trả về true/false
-        if (user.packages) {
-            user.packages = user.packages.map(pkg => ({
-                ...pkg,
-                slug: `${pkg.id}-${slugify(pkg.title)}`
-            }));
-        }
+        });
+        user.isFollowing = !!followRecord;
+    } else {
+        user.isFollowing = false;
     }
 
     return user;
 }
 
-async function getFollowing(userId, page = 1, limit = 10) {
+async function getFollowing(userId, page = 1, limit = 8) {
     const skip = (page - 1) * limit;
 
     const [following, total] = await Promise.all([
@@ -108,6 +169,7 @@ async function getFollowing(userId, page = 1, limit = 10) {
                         id: true,
                         displayName: true,
                         username: true,
+                        slug: true,
                         avatarUrl: true
                     }
                 }
@@ -125,7 +187,7 @@ async function getFollowing(userId, page = 1, limit = 10) {
         id: f.following.id,
         avatar: f.following.avatarUrl,
         displayname: f.following.displayName,
-        slug: `${f.following.id}-${slugify(f.following.username)}`
+        slug: f.following.slug
     }));
 
     return {
@@ -173,14 +235,24 @@ async function toggleFollow(followerId, followingId) {
 async function updateProfile(userId, data) {
     const { displayName, username, avatarUrl } = data;
 
+    // Build update data
+    const updateData = {
+        ...(displayName !== undefined && { displayName }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+    };
+
+    // If username changes, update slug
+    if (username !== undefined) {
+        updateData.username = username;
+        updateData.slug = `${slugify(username)}-${userId}`;
+    }
+
     return prisma.user.update({
         where: { id: parseInt(userId) },
-        data: {
-            ...(displayName !== undefined && { displayName }),
-            ...(avatarUrl !== undefined && { avatarUrl }),
-        },
+        data: updateData,
     });
 }
+
 
 module.exports = {
     getUserByEmail,

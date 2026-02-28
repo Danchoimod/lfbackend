@@ -15,13 +15,15 @@ const getAllCarousels = async () => {
                     id: true,
                     displayName: true,
                     username: true,
-                    avatarUrl: true
+                    avatarUrl: true,
+                    slug: true
                 }
             },
             package: {
                 select: {
                     id: true,
-                    title: true
+                    title: true,
+                    slug: true
                 }
             }
         },
@@ -39,11 +41,11 @@ const getAllCarousels = async () => {
             avatar: item.user.avatarUrl,
             displayName: item.user.displayName,
             username: item.user.username,
-            slug: `${item.user.id}-${slugify(item.user.username)}`
+            slug: item.user.slug || `${item.user.id}-${slugify(item.user.username)}`
         },
         package: item.package ? {
             id: item.package.id,
-            slug: `${item.package.id}-${slugify(item.package.title)}`
+            slug: item.package.slug || `${item.package.id}-${slugify(item.package.title)}`
         } : null
     }));
 

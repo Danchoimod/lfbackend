@@ -9,6 +9,7 @@ const exampleRoutes = require('./exampleRoutes');
 const carouselRoutes = require('./carouselRoutes');
 const versionRoutes = require('./versionRoutes');
 const reportRoutes = require('./reportRoutes');
+const appUpdateRoutes = require('./appUpdateRoutes');
 const { checkAuth } = require('../middlewares/auth.middleware');
 const userController = require('../controllers/userController');
 
@@ -31,5 +32,6 @@ router.use('/examples', exampleRoutes);
 router.use('/carousels', carouselRoutes);
 router.use('/versions', versionRoutes);
 router.use('/reports', reportRoutes);
+router.use('/app-updates', appUpdateRoutes);
 
 module.exports = router;

@@ -15,6 +15,7 @@ model User {
   firebaseUid String   @unique @map("firebase_uid")
   displayName String?  @map("display_name")
   username    String?
+  slug        String?  @unique
   email       String   @unique
   status      Int?     @default(1)
   createdAt   DateTime @default(now()) @map("create_at")
@@ -35,22 +36,10 @@ model User {
   @@map("users")
 }
 
-model Follow {
-  id          Int      @id @default(autoincrement())
-  followerId  Int      @map("follower_id")
-  followingId Int      @map("following_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  follower  User @relation("follower", fields: [followerId], references: [id])
-  following User @relation("following", fields: [followingId], references: [id])
-
-  @@unique([followerId, followingId])
-  @@map("follows")
-}
-
 model Package {
   id           Int      @id @default(autoincrement())
   title        String?
+  slug         String?  @unique
   description  String?  @db.Text
   shortSummary String?  @map("short_summary")
   status       Int?     @default(0)
@@ -63,9 +52,9 @@ model Package {
   catId        Int      @map("category_id")
 
   // Relations
-  user      User       @relation(fields: [userId], references: [id])
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   category  Category   @relation(fields: [catId], references: [id])
-  versions  Version[] // Một package có nhiều phiên bản
+  versions  Version[]
   images    Image[]
   comments  Comment[]
   ratings   Rating[]
@@ -76,27 +65,107 @@ model Package {
   @@map("packages")
 }
 
-model Version {
-  id            Int      @id @default(autoincrement())
-  platformType  Int?     @map("platform_type")
-  versionNumber String?  @map("version_number")
-  url           String?
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  // Relations
-  packages Package[] // Một phiên bản có thể thuộc về nhiều package
-
-  @@map("version")
-}
-
 model Image {
   id        Int     @id @default(autoincrement())
   url       String?
   packageId Int     @map("package_id")
 
-  package Package @relation(fields: [packageId], references: [id])
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@map("images")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userId    Int  @map("user_id")
+  packageId Int  @map("package_id")
+  parentId  Int? @map("parent_id")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  // Self-relation cho comment lồng nhau (reply)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Rating {
+  id        Int      @id @default(autoincrement())
+  score     Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  packageId Int      @map("package_id")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, packageId])
+  @@map("ratings")
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId Int  @map("user_id")
+  user   User @relation("FiledReports", fields: [userId], references: [id], onDelete: Cascade)
+
+  targetUserId Int?  @map("target_user_id")
+  targetUser   User? @relation("ReceivedReports", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  packageId Int?     @map("package_id")
+  package   Package? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model Url {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  url       String?
+  packageId Int      @map("package_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("urls")
+}
+
+model Carousel {
+  id        Int      @id @default(autoincrement())
+  title     String?
+  summary   String?
+  imageUrl  String?  @map("image_url")
+  catId     Int      @map("category_id")
+  userId    Int      @map("user_id")
+  packageId Int?     @map("package_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  category Category @relation(fields: [catId], references: [id])
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package  Package? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("carousels")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int      @map("follower_id")
+  followingId Int      @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
 }
 
 model Category {
@@ -118,82 +187,28 @@ model Category {
   @@map("categories")
 }
 
-model Comment {
-  id        Int      @id @default(autoincrement())
-  content   String?  @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model Version {
+  id            Int      @id @default(autoincrement())
+  platformType  Int?     @map("platform_type")
+  versionNumber String?  @map("version_number")
+  url           String?
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  userId    Int  @map("user_id")
-  packageId Int  @map("package_id")
-  parentId  Int? @map("parent_id")
+  // Relations
+  packages Package[]
 
-  user    User    @relation(fields: [userId], references: [id])
-  package Package @relation(fields: [packageId], references: [id])
-
-  // Self-relation cho comment lồng nhau (reply)
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies Comment[] @relation("CommentReplies")
-
-  @@map("comments")
+  @@map("version")
 }
 
-model Rating {
-  id        Int      @id @default(autoincrement())
-  score     Int?
-  createdAt DateTime @default(now()) @map("created_at")
-  userId    Int      @map("user_id")
-  packageId Int      @map("package_id")
+model AppUpdate {
+  id          Int      @id @default(autoincrement())
+  platform    String   // "android", "windows"
+  versionName String   @map("version_name")
+  versionCode Int      @map("version_code")
+  isForce     Boolean  @default(false) @map("is_force")
+  downloadUrl String   @map("download_url")
+  changelog   String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  user    User    @relation(fields: [userId], references: [id])
-  package Package @relation(fields: [packageId], references: [id])
-
-  @@unique([userId, packageId]) // Mỗi user chỉ đánh giá 1 package 1 lần
-  @@map("ratings")
-}
-
-model Report {
-  id        Int      @id @default(autoincrement())
-  reason    String?
-  createdAt DateTime @default(now()) @map("created_at")
-
-  userId Int  @map("user_id") // Người tạo report
-  user   User @relation("FiledReports", fields: [userId], references: [id])
-
-  targetUserId Int?  @map("target_user_id") // User bị report (nullable)
-  targetUser   User? @relation("ReceivedReports", fields: [targetUserId], references: [id])
-
-  packageId Int?     @map("package_id") // Package bị report (nullable)
-  package   Package? @relation(fields: [packageId], references: [id])
-
-  @@map("reports")
-}
-
-model Url {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  url       String?
-  packageId Int      @map("package_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  package Package @relation(fields: [packageId], references: [id])
-
-  @@map("urls")
-}
-
-model Carousel {
-  id        Int      @id @default(autoincrement())
-  title     String?
-  summary   String?
-  imageUrl  String?  @map("image_url")
-  catId     Int      @map("category_id")
-  userId    Int      @map("user_id")
-  packageId Int?     @map("package_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  category Category @relation(fields: [catId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-  package  Package? @relation(fields: [packageId], references: [id])
-
-  @@map("carousels")
+  @@map("app_updates")
 }
